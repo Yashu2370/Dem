@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+
 <meta charset="UTF-8">
 <title>AI Research Assistant</title>
 
@@ -13,80 +14,82 @@ margin:0;
 }
 
 header{
-background:#2c7be5;
+background:#111827;
 color:white;
-padding:15px;
+padding:20px;
 text-align:center;
 }
 
 .container{
-max-width:1000px;
+max-width:1100px;
 margin:auto;
 padding:20px;
 }
 
-.card{
-background:white;
-padding:20px;
-border-radius:8px;
-margin-bottom:20px;
-box-shadow:0 2px 10px rgba(0,0,0,0.1);
-}
-
 textarea{
 width:100%;
-height:200px;
-padding:10px;
+height:180px;
+padding:12px;
 font-size:14px;
 }
 
 button{
 padding:10px 15px;
-margin:5px;
-background:#2c7be5;
-color:white;
+margin:6px;
 border:none;
+background:#2563eb;
+color:white;
 cursor:pointer;
+border-radius:4px;
 }
 
 button:hover{
-background:#1a5fc4;
+background:#1e40af;
+}
+
+.card{
+background:white;
+padding:20px;
+margin-top:20px;
+border-radius:8px;
+box-shadow:0 3px 10px rgba(0,0,0,0.1);
 }
 
 .output{
+margin-top:15px;
 background:#fafafa;
 padding:15px;
-margin-top:15px;
-border-radius:5px;
 white-space:pre-wrap;
 }
 
 </style>
+
 </head>
 
 <body>
 
 <header>
-<h1>🤖 Generative AI Research Assistant</h1>
-<p>Literature Review | Research Summary | Writing Help | Code Generator</p>
+<h1>🤖 AI Research Assistant for Engineering Libraries</h1>
+<p>Summarize • Literature Review • Citation • Code Generation</p>
 </header>
 
 <div class="container">
 
 <div class="card">
 
-<h2>Enter Research Text / Abstract</h2>
+<h3>Enter Research Topic or Paper Text</h3>
 
-<textarea id="inputText" placeholder="Paste research paper text or topic here..."></textarea>
+<textarea id="inputText"></textarea>
 
 <br>
 
-<button onclick="generateSummary()">Generate Summary</button>
-<button onclick="generateLiterature()">Literature Review</button>
-<button onclick="generateWriting()">Writing Assistance</button>
+<button onclick="summarize()">Summarize</button>
+<button onclick="literature()">Literature Review</button>
+<button onclick="citation()">Generate Citation</button>
+<button onclick="explain()">Explain Topic</button>
 <button onclick="generateCode()">Generate Code</button>
 
-<div class="output" id="output"></div>
+<div id="output" class="output"></div>
 
 </div>
 
@@ -94,65 +97,77 @@ white-space:pre-wrap;
 
 <script>
 
-function getText(){
+function getInput(){
 return document.getElementById("inputText").value
 }
 
-function generateSummary(){
+function summarize(){
 
-let text=getText()
+let text=getInput()
 
-let words=text.split(" ").slice(0,60).join(" ")
+let words=text.split(" ").slice(0,80).join(" ")
 
 document.getElementById("output").innerText=
 "Research Summary:\n\n"+words+"..."
 
 }
 
-function generateLiterature(){
+function literature(){
 
-let topic=getText()
+let topic=getInput()
 
 document.getElementById("output").innerText=
 
-"Literature Review Points:\n\n"+
-"1. Previous studies on "+topic+" highlight technological advancements.\n"+
-"2. Researchers emphasize AI-based information retrieval.\n"+
-"3. Several engineering institutions adopt AI for research support.\n"+
-"4. Generative AI tools assist in summarization and knowledge discovery.\n"+
-"5. Future research focuses on intelligent academic systems."
+"Literature Review for: "+topic+"\n\n"+
+"1. Several studies highlight the role of AI in academic research.\n"+
+"2. Digital libraries increasingly integrate machine learning for knowledge discovery.\n"+
+"3. Generative AI improves research productivity by automating literature analysis.\n"+
+"4. Universities adopt AI-powered research assistants.\n"+
+"5. Future libraries will integrate AI-driven knowledge systems."
 
 }
 
-function generateWriting(){
+function citation(){
 
-let topic=getText()
+let topic=getInput()
 
 document.getElementById("output").innerText=
 
-"Academic Writing Assistance:\n\n"+
-"The study focuses on "+topic+
-". Generative Artificial Intelligence is increasingly used in academic research to assist scholars in literature analysis, knowledge synthesis, and research writing. "+
-"These tools enhance productivity and support interdisciplinary innovation."
+"Example IEEE Citation:\n\n"+
+"Author, 'Study on "+topic+
+",' Journal of Artificial Intelligence Research, vol. 10, no. 2, pp. 120-130, 2024."
+
+}
+
+function explain(){
+
+let topic=getInput()
+
+document.getElementById("output").innerText=
+
+"Topic Explanation:\n\n"+
+topic+" refers to the application of modern computational techniques "+
+"to analyze data, support research activities, and improve knowledge discovery in academic environments."
 
 }
 
 function generateCode(){
 
-let topic=getText()
+let topic=getInput()
 
 document.getElementById("output").innerText=
 
-"Example Python Code for "+topic+":\n\n"+
-
+"Example Python Code for "+topic+"\n\n"+
 `import pandas as pd
 
-data = {"Research":"AI in Libraries","Year":[2022,2023,2024]}
+data = {
+ "topic": ["AI Research", "Generative AI", "Digital Libraries"],
+ "year":[2022,2023,2024]
+}
 
 df = pd.DataFrame(data)
 
 print(df)`
-
 }
 
 </script>
