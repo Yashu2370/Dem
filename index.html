@@ -1,8 +1,7 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 
-<meta charset="UTF-8">
 <title>AI Research Assistant</title>
 
 <style>
@@ -10,56 +9,23 @@
 body{
 font-family:Arial;
 background:#f4f6f8;
-margin:0;
-}
-
-header{
-background:#111827;
-color:white;
-padding:20px;
-text-align:center;
-}
-
-.container{
-max-width:1100px;
-margin:auto;
-padding:20px;
+padding:40px;
 }
 
 textarea{
 width:100%;
-height:180px;
-padding:12px;
-font-size:14px;
+height:150px;
 }
 
 button{
-padding:10px 15px;
-margin:6px;
-border:none;
-background:#2563eb;
-color:white;
-cursor:pointer;
-border-radius:4px;
+padding:10px;
+margin-top:10px;
 }
 
-button:hover{
-background:#1e40af;
-}
-
-.card{
-background:white;
-padding:20px;
+#output{
 margin-top:20px;
-border-radius:8px;
-box-shadow:0 3px 10px rgba(0,0,0,0.1);
-}
-
-.output{
-margin-top:15px;
-background:#fafafa;
+background:white;
 padding:15px;
-white-space:pre-wrap;
 }
 
 </style>
@@ -68,106 +34,50 @@ white-space:pre-wrap;
 
 <body>
 
-<header>
-<h1>🤖 AI Research Assistant for Engineering Libraries</h1>
-<p>Summarize • Literature Review • Citation • Code Generation</p>
-</header>
+<h2>🤖 AI Research Assistant</h2>
 
-<div class="container">
-
-<div class="card">
-
-<h3>Enter Research Topic or Paper Text</h3>
-
-<textarea id="inputText"></textarea>
+<textarea id="question" placeholder="Ask research question..."></textarea>
 
 <br>
 
-<button onclick="summarize()">Summarize</button>
-<button onclick="literature()">Literature Review</button>
-<button onclick="citation()">Generate Citation</button>
-<button onclick="explain()">Explain Topic</button>
-<button onclick="generateCode()">Generate Code</button>
+<button onclick="askAI()">Ask AI</button>
 
-<div id="output" class="output"></div>
-
-</div>
-
-</div>
+<div id="output"></div>
 
 <script>
 
-function getInput(){
-return document.getElementById("inputText").value
-}
+async function askAI(){
 
-function summarize(){
+let question=document.getElementById("question").value
 
-let text=getInput()
+document.getElementById("output").innerText="Thinking..."
 
-let words=text.split(" ").slice(0,80).join(" ")
+let response = await fetch("https://api.openai.com/v1/chat/completions",{
 
-document.getElementById("output").innerText=
-"Research Summary:\n\n"+words+"..."
+method:"POST",
 
-}
+headers:{
+"Content-Type":"application/json",
+"Authorization":"Bearer YOUR_API_KEY"
+},
 
-function literature(){
+body:JSON.stringify({
 
-let topic=getInput()
+model:"gpt-4o-mini",
 
-document.getElementById("output").innerText=
+messages:[
+{role:"user",content:question}
+]
 
-"Literature Review for: "+topic+"\n\n"+
-"1. Several studies highlight the role of AI in academic research.\n"+
-"2. Digital libraries increasingly integrate machine learning for knowledge discovery.\n"+
-"3. Generative AI improves research productivity by automating literature analysis.\n"+
-"4. Universities adopt AI-powered research assistants.\n"+
-"5. Future libraries will integrate AI-driven knowledge systems."
+})
 
-}
+})
 
-function citation(){
+let data = await response.json()
 
-let topic=getInput()
+document.getElementById("output").innerText =
+data.choices[0].message.content
 
-document.getElementById("output").innerText=
-
-"Example IEEE Citation:\n\n"+
-"Author, 'Study on "+topic+
-",' Journal of Artificial Intelligence Research, vol. 10, no. 2, pp. 120-130, 2024."
-
-}
-
-function explain(){
-
-let topic=getInput()
-
-document.getElementById("output").innerText=
-
-"Topic Explanation:\n\n"+
-topic+" refers to the application of modern computational techniques "+
-"to analyze data, support research activities, and improve knowledge discovery in academic environments."
-
-}
-
-function generateCode(){
-
-let topic=getInput()
-
-document.getElementById("output").innerText=
-
-"Example Python Code for "+topic+"\n\n"+
-`import pandas as pd
-
-data = {
- "topic": ["AI Research", "Generative AI", "Digital Libraries"],
- "year":[2022,2023,2024]
-}
-
-df = pd.DataFrame(data)
-
-print(df)`
 }
 
 </script>
