@@ -1,126 +1,217 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Library App</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f4f6f8;
-            padding: 20px;
-        }
+<meta charset="UTF-8">
+<title>Library Management App</title>
 
-        h1 {
-            text-align: center;
-        }
+<style>
 
-        .container {
-            max-width: 800px;
-            margin: auto;
-            background: #fff;
-            padding: 20px;
-            border-radius: 8px;
-        }
+body{
+    font-family: Arial, sans-serif;
+    background:#f4f6f8;
+    padding:20px;
+}
 
-        form {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin-bottom: 20px;
-        }
+.container{
+    max-width:900px;
+    margin:auto;
+    background:white;
+    padding:25px;
+    border-radius:10px;
+    box-shadow:0 5px 15px rgba(0,0,0,0.1);
+}
 
-        input, button {
-            padding: 10px;
-            font-size: 14px;
-        }
+h1{
+    text-align:center;
+}
 
-        button {
-            grid-column: span 3;
-            background: #2c7be5;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
+form{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:10px;
+    margin-bottom:15px;
+}
 
-        button:hover {
-            background: #1a5fc4;
-        }
+input,button{
+    padding:10px;
+    font-size:14px;
+}
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
+button{
+    grid-column:span 3;
+    background:#2c7be5;
+    color:white;
+    border:none;
+    cursor:pointer;
+}
 
-        th, td {
-            border-bottom: 1px solid #ddd;
-            padding: 10px;
-            text-align: left;
-        }
+button:hover{
+    background:#1a5fc4;
+}
 
-        th {
-            background: #f0f0f0;
-        }
+.search{
+    width:100%;
+    margin-bottom:15px;
+}
 
-        .delete {
-            color: red;
-            cursor: pointer;
-        }
-    </style>
+table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+th,td{
+    padding:10px;
+    border-bottom:1px solid #ddd;
+}
+
+th{
+    background:#f1f1f1;
+}
+
+.delete{
+    color:red;
+    cursor:pointer;
+    margin-right:10px;
+}
+
+.edit{
+    color:green;
+    cursor:pointer;
+}
+
+</style>
 </head>
+
 <body>
 
 <div class="container">
-    <h1>📚 Library App</h1>
 
-    <form id="bookForm">
-        <input type="text" id="title" placeholder="Book Title" required>
-        <input type="text" id="author" placeholder="Author" required>
-        <input type="number" id="year" placeholder="Year" required>
-        <button type="submit">Add Book</button>
-    </form>
+<h1>📚 Library Management App</h1>
 
-    <table>
-        <thead>
-            <tr>
-                <th>Title</th>
-                <th>Author</th>
-                <th>Year</th>
-                <th>Action</th>
-            </tr>
-        </thead>
-        <tbody id="bookList"></tbody>
-    </table>
+<input type="text" id="search" class="search" placeholder="Search Book...">
+
+<form id="bookForm">
+
+<input type="text" id="title" placeholder="Book Title" required>
+<input type="text" id="author" placeholder="Author" required>
+<input type="number" id="year" placeholder="Year" required>
+
+<button type="submit">Add Book</button>
+
+</form>
+
+<table>
+
+<thead>
+<tr>
+<th>Title</th>
+<th>Author</th>
+<th>Year</th>
+<th>Action</th>
+</tr>
+</thead>
+
+<tbody id="bookList"></tbody>
+
+</table>
+
 </div>
 
 <script>
-    const form = document.getElementById("bookForm");
-    const bookList = document.getElementById("bookList");
 
-    form.addEventListener("submit", function(e) {
-        e.preventDefault();
+const form = document.getElementById("bookForm");
+const bookList = document.getElementById("bookList");
+const search = document.getElementById("search");
 
-        const title = document.getElementById("title").value;
-        const author = document.getElementById("author").value;
-        const year = document.getElementById("year").value;
+let books = JSON.parse(localStorage.getItem("books")) || [];
 
-        const row = document.createElement("tr");
 
-        row.innerHTML = `
-            <td>${title}</td>
-            <td>${author}</td>
-            <td>${year}</td>
-            <td class="delete">Delete</td>
-        `;
+function saveBooks(){
+localStorage.setItem("books",JSON.stringify(books));
+}
 
-        bookList.appendChild(row);
-        form.reset();
-    });
+function displayBooks(filter=""){
 
-    bookList.addEventListener("click", function(e) {
-        if (e.target.classList.contains("delete")) {
-            e.target.parentElement.remove();
-        }
-    });
+bookList.innerHTML="";
+
+books
+.filter(book =>
+book.title.toLowerCase().includes(filter.toLowerCase()) ||
+book.author.toLowerCase().includes(filter.toLowerCase())
+)
+
+.forEach((book,index)=>{
+
+const row=document.createElement("tr");
+
+row.innerHTML=`
+<td>${book.title}</td>
+<td>${book.author}</td>
+<td>${book.year}</td>
+<td>
+<span class="edit" onclick="editBook(${index})">Edit</span>
+|
+<span class="delete" onclick="deleteBook(${index})">Delete</span>
+</td>
+`;
+
+bookList.appendChild(row);
+
+});
+
+}
+
+
+form.addEventListener("submit",function(e){
+
+e.preventDefault();
+
+const title=document.getElementById("title").value;
+const author=document.getElementById("author").value;
+const year=document.getElementById("year").value;
+
+books.push({title,author,year});
+
+saveBooks();
+displayBooks();
+
+form.reset();
+
+});
+
+
+function deleteBook(index){
+
+books.splice(index,1);
+
+saveBooks();
+displayBooks();
+
+}
+
+
+function editBook(index){
+
+const book=books[index];
+
+document.getElementById("title").value=book.title;
+document.getElementById("author").value=book.author;
+document.getElementById("year").value=book.year;
+
+deleteBook(index);
+
+}
+
+
+search.addEventListener("keyup",function(){
+
+displayBooks(search.value);
+
+});
+
+
+displayBooks();
+
 </script>
 
 </body>
