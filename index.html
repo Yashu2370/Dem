@@ -119,9 +119,25 @@ function processData(data) {
             errors.push(`Row ${r}: Subject & Department mismatch`);
         }
 
-        // LinkPath check
+        // LinkPath mismatch
         if (!link.toLowerCase().includes(access.toLowerCase())) {
             errors.push(`Row ${r}: LinkPath mismatch`);
+        }
+
+        // 🔥 NEW: Missing ".pdf"
+        if (!link.toLowerCase().endsWith(".pdf")) {
+            errors.push(`Row ${r}: Missing ".pdf" extension → ${link}`);
+        }
+
+        // 🔥 NEW: Missing dot before pdf (dl9849pdf)
+        if (/dl\d+pdf$/i.test(link)) {
+            errors.push(`Row ${r}: Missing "." before pdf → ${link}`);
+        }
+
+        // 🔥 NEW: Strict expected format
+        let expectedLink = `digital/question papers/${access.toLowerCase()}.pdf`;
+        if (link.toLowerCase() !== expectedLink) {
+            errors.push(`Row ${r}: Incorrect LinkPath format → ${link}`);
         }
 
         // Date format
