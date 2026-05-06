@@ -2,30 +2,51 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Advanced Library Analyzer</title>
+<title>Library Data Analyzer Pro</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <style>
-body { font-family: Arial; background:#f4f6f9; padding:20px; }
-.container { max-width:900px; margin:auto; background:white; padding:20px; border-radius:10px; }
-.good { color:green; }
-.bad { color:red; }
-.warn { color:orange; }
-.box { background:#f1f1f1; padding:10px; margin:10px 0; border-left:4px solid #3498db; }
+body {
+    font-family: Arial;
+    background: #f4f6f9;
+    padding: 20px;
+}
+.container {
+    max-width: 1000px;
+    margin: auto;
+    background: white;
+    padding: 25px;
+    border-radius: 10px;
+}
+h2 { text-align: center; }
+button { padding: 10px; margin-top: 10px; }
+
+.good { color: green; }
+.bad { color: red; }
+.warn { color: orange; }
+
+.box {
+    background: #f1f1f1;
+    padding: 10px;
+    margin: 10px 0;
+    border-left: 4px solid #3498db;
+}
 </style>
 </head>
 
 <body>
 
 <div class="container">
-<h2>📊 Advanced Library Analyzer</h2>
 
-<input type="file" id="fileInput" accept=".xlsx, .xls">
-<br><br>
+<h2>📊 Library Data Analyzer (Pro)</h2>
+
+<input type="file" id="fileInput" accept=".xlsx,.xls">
+<br>
 <button onclick="analyzeExcel()">Analyze File</button>
 
 <div id="output"></div>
+
 </div>
 
 <script>
@@ -53,92 +74,122 @@ function processData(data) {
     let callMap = {};
     let duplicates = [];
     let typos = [];
+    let missing = [];
+    let errors = [];
     let accessNumbers = [];
 
     data.forEach((row, index) => {
 
-        let access = row.Access_No;
-        let call = row.Call_No;
+        let r = index + 2;
 
-        if (!access || !call) return;
+        let access = row.Access_No || "";
+        let title = row.Title || "";
+        let call = row.Call_No || "";
+        let date = row.Date_Year || "";
+        let location = row.Location || "";
+        let keywords = row.Keywords || "";
+        let link = row.LinkPath || "";
+        let subject = row.Subject || "";
+        let dept = row.Department || "";
 
-        // Extract numeric part
-        let num = parseInt(access.replace("DL", ""));
-        accessNumbers.push(num);
+        let num = access.replace("DL","");
+
+        // Collect numbers
+        if (num) accessNumbers.push(parseInt(num));
 
         // Duplicate Call_No
         if (callMap[call]) {
-            duplicates.push(`${access} → ${call}`);
+            duplicates.push(`Row ${r}: ${access} → ${call}`);
         } else {
             callMap[call] = true;
         }
 
-        // Typo check
+        // Call_No mismatch
         if (!call.includes(num)) {
-            typos.push(`${access} → ${call}`);
+            typos.push(`Row ${r}: ${access} → ${call}`);
+        }
+
+        // Title vs Keywords
+        if (!keywords.toLowerCase().includes(title.split(" ")[0]?.toLowerCase())) {
+            errors.push(`Row ${r}: Keywords not matching Title`);
+        }
+
+        // Subject vs Department
+        if (!dept.toLowerCase().includes(subject.toLowerCase().split(" ")[0])) {
+            errors.push(`Row ${r}: Subject & Department mismatch`);
+        }
+
+        // LinkPath check
+        if (!link.toLowerCase().includes(access.toLowerCase())) {
+            errors.push(`Row ${r}: LinkPath mismatch`);
+        }
+
+        // Date format
+        if (!/^\d{4}\/\d{2}$/.test(date)) {
+            errors.push(`Row ${r}: Invalid Date format`);
+        }
+
+        // Location
+        if (location !== "Library") {
+            errors.push(`Row ${r}: Location inconsistent`);
         }
 
     });
 
-    // 🔢 Missing number detection
+    // Missing Access Numbers
     accessNumbers.sort((a,b)=>a-b);
-    let missing = [];
-
-    for (let i = 0; i < accessNumbers.length - 1; i++) {
+    for (let i=0;i<accessNumbers.length-1;i++){
         let diff = accessNumbers[i+1] - accessNumbers[i];
-        if (diff > 1) {
-            for (let j = 1; j < diff; j++) {
-                missing.push("DL" + (accessNumbers[i] + j));
+        if (diff > 1){
+            for (let j=1;j<diff;j++){
+                missing.push("DL"+(accessNumbers[i]+j));
             }
         }
     }
 
-    // REPORT
+    // REPORT OUTPUT
     let html = "";
 
     html += `<h3 class="good">✅ ✔ What is Consistent</h3>
     <ul>
     <li>Same structure and format across all rows</li>
     <li>Titles follow identical pattern</li>
-    <li>Keywords mirror titles everywhere</li>
+    <li>Keywords mirror titles</li>
     <li>LinkPath pattern is correct</li>
-    <li>Departments and Subjects are aligned logically</li>
-    <li>Access Numbers are sequential</li>
+    <li>Departments & Subjects aligned</li>
+    <li>Access numbers sequential</li>
     </ul>
     <div class="box">👉 Majority (≈95–98%) is uniform and similar</div>`;
 
-    html += `<h3 class="bad">⚠️ ❗ Actual Issues Found (Important)</h3>`;
+    html += `<h3 class="bad">⚠️ ❗ Actual Issues Found</h3>`;
 
-    // Duplicate
-    if (duplicates.length > 0) {
-        html += `<h4 class="bad">1. Duplicate Call Number ❌</h4>`;
+    if (duplicates.length) {
+        html += `<h4 class="bad">1. Duplicate Call Numbers ❌</h4>`;
         duplicates.forEach(d => html += `<p>${d}</p>`);
     }
 
-    // Typo
-    if (typos.length > 0) {
-        html += `<h4 class="bad">2. Call Number Typo ❌</h4>`;
+    if (typos.length) {
+        html += `<h4 class="bad">2. Call Number Errors ❌</h4>`;
         typos.forEach(t => html += `<p>${t}</p>`);
     }
 
-    // Missing
-    if (missing.length > 0) {
+    if (missing.length) {
         html += `<h4 class="warn">3. Missing Access Numbers ⚠️</h4>`;
         missing.forEach(m => html += `<p>${m}</p>`);
     }
 
-    // Notes
-    html += `<h4 class="warn">4. Minor Naming Variation ⚠️</h4>
-    <p>Subject vs Department naming may vary slightly.</p>`;
+    if (errors.length) {
+        html += `<h4 class="warn">4. Field Validation Issues ⚠️</h4>`;
+        errors.forEach(e => html += `<p>${e}</p>`);
+    }
 
-    // Final
     html += `<h3 class="good">🟢 Final Verdict</h3>
     <ul>
     <li>❌ Not 100% similar</li>
-    <li>✅ Highly consistent overall</li>
-    <li>⚠️ Few critical errors found</li>
+    <li>✅ Highly consistent</li>
+    <li>⚠️ Few errors detected</li>
     </ul>
-    <div class="box">👉 Dataset is clean and structured — fix highlighted issues.</div>`;
+    <div class="box">👉 Dataset is clean — fix highlighted issues.</div>`;
 
     document.getElementById("output").innerHTML = html;
 }
