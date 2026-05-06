@@ -2,27 +2,46 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Row Analyzer</title>
+<title>Smart Excel Row Analyzer</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <style>
 body { font-family: Arial; background:#0f172a; color:white; padding:20px; }
 table { border-collapse: collapse; width:100%; }
 td, th { border:1px solid #334155; padding:8px; }
-.issue { background:#ef4444; }
-.warn { background:#f59e0b; }
-.format { background:#eab308; color:black; }
+
+.exact { background:#ef4444; color:white; }
+.similar { background:#f59e0b; }
+.diff { background:#38bdf8; color:black; }
+
+.legend span {
+  display:inline-block;
+  padding:6px 10px;
+  margin:4px;
+  border-radius:5px;
+}
 </style>
 </head>
 
 <body>
 
-<h2>📊 Line-by-Line Excel Analyzer</h2>
+<h2>📊 Smart Excel Row Analyzer</h2>
+
+<!-- 🔥 TOP LEGEND -->
+<div class="legend" style="margin:15px 0; padding:10px; background:#1e293b; border-radius:8px;">
+  <strong>Legend:</strong><br>
+  <span style="background:#ef4444; color:white;">Red Row = Exact duplicate (all columns same)</span>
+  <span style="background:#f59e0b; color:black;">Orange Row = Small typo / 1-2 letter difference</span>
+  <span style="background:#38bdf8; color:black;">Blue Cell = Column where change detected</span>
+  <span style="background:#334155; color:white;">OK = No issue</span>
+</div>
+
 <input type="file" id="fileInput">
 
 <div id="output"></div>
 
 <script>
+// FILE LOAD
 document.getElementById('fileInput').addEventListener('change', function(e){
   const reader = new FileReader();
 
@@ -31,61 +50,95 @@ document.getElementById('fileInput').addEventListener('change', function(e){
     const ws = wb.Sheets[wb.SheetNames[0]];
     const data = XLSX.utils.sheet_to_json(ws, {header:1});
 
-    analyzeRows(data);
+    analyze(data);
   };
 
   reader.readAsArrayBuffer(e.target.files[0]);
 });
 
-function analyzeRows(data){
+// SIMILARITY FUNCTION
+function similarity(a, b) {
+  function editDistance(s1, s2) {
+    let dp = Array(s2.length + 1).fill(null).map(() =>
+      Array(s1.length + 1).fill(null)
+    );
+
+    for (let i = 0; i <= s1.length; i++) dp[0][i] = i;
+    for (let j = 0; j <= s2.length; j++) dp[j][0] = j;
+
+    for (let j = 1; j <= s2.length; j++) {
+      for (let i = 1; i <= s1.length; i++) {
+        if (s1[i - 1] === s2[j - 1]) {
+          dp[j][i] = dp[j - 1][i - 1];
+        } else {
+          dp[j][i] = Math.min(
+            dp[j - 1][i - 1] + 1,
+            dp[j][i - 1] + 1,
+            dp[j - 1][i] + 1
+          );
+        }
+      }
+    }
+    return dp[s2.length][s1.length];
+  }
+
+  let longer = a.length > b.length ? a : b;
+  let shorter = a.length > b.length ? b : a;
+
+  let dist = editDistance(longer, shorter);
+  return (longer.length - dist) / longer.length;
+}
+
+// MAIN ANALYZER
+function analyze(data){
   let headers = data[0];
   let rows = data.slice(1);
 
   let html = "<table><tr>";
-
   headers.forEach(h => html += `<th>${h}</th>`);
   html += "<th>Issues</th></tr>";
 
-  let seenValues = {};
+  rows.forEach((row, i) => {
 
-  rows.forEach((row, rowIndex) => {
+    let rowClass = "";
     let issues = [];
-    html += "<tr>";
+    let diffCols = new Set();
 
-    row.forEach((cell, colIndex) => {
-      let cls = "";
+    for (let j = 0; j < i; j++) {
+      let prevRow = rows[j];
 
-      // Missing value
-      if(cell === undefined || cell === ""){
-        cls = "issue";
-        issues.push(`Missing value in ${headers[colIndex]}`);
+      let matchCount = 0;
+
+      for (let k = 0; k < row.length; k++) {
+        let val1 = (row[k] || "").toString().toLowerCase().trim();
+        let val2 = (prevRow[k] || "").toString().toLowerCase().trim();
+
+        let sim = similarity(val1, val2);
+
+        if (sim === 1) {
+          matchCount++;
+        } else if (sim > 0.9) {
+          diffCols.add(k);
+        }
       }
 
-      // Format check
-      if(typeof cell === "string" && !isNaN(cell)){
-        cls = "format";
-        issues.push(`Format issue in ${headers[colIndex]}`);
-      }
+      let matchPercent = (matchCount / row.length) * 100;
 
-      // Duplicate across rows
-      let key = headers[colIndex] + "_" + cell;
-      if(seenValues[key]){
-        cls = "warn";
-        issues.push(`Duplicate in ${headers[colIndex]}`);
-      } else {
-        seenValues[key] = true;
-      }
-
-      html += `<td class="${cls}">${cell ?? ""}</td>`;
-    });
-
-    // Row-to-row comparison (simple pattern)
-    if(rowIndex > 0){
-      let prevRow = rows[rowIndex - 1];
-      if(JSON.stringify(row) === JSON.stringify(prevRow)){
-        issues.push("Exact duplicate row");
+      if (matchPercent === 100) {
+        rowClass = "exact";
+        issues.push("Exact Duplicate Row");
+      } else if (matchPercent > 80) {
+        rowClass = "similar";
+        issues.push("Minor text difference (typo)");
       }
     }
+
+    html += `<tr class="${rowClass}">`;
+
+    row.forEach((cell, index) => {
+      let cellClass = diffCols.has(index) ? "diff" : "";
+      html += `<td class="${cellClass}">${cell ?? ""}</td>`;
+    });
 
     html += `<td>${issues.join("<br>") || "OK"}</td>`;
     html += "</tr>";
