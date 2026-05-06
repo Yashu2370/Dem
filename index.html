@@ -1,116 +1,99 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>Advanced Excel Validator</title>
+<title>Row Analyzer</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <style>
-body { font-family: Arial; background:#0f172a; color:#e2e8f0; padding:20px; }
-table { border-collapse: collapse; margin-top:20px; width:100%; }
-td, th { border:1px solid #334155; padding:8px; text-align:left; }
-th { background:#1e293b; }
-.missing { background:#ef4444; color:white; }
-.duplicate { background:#f59e0b; }
-.format { background:#eab308; }
-.grammar { background:#38bdf8; color:black; }
+body { font-family: Arial; background:#0f172a; color:white; padding:20px; }
+table { border-collapse: collapse; width:100%; }
+td, th { border:1px solid #334155; padding:8px; }
+.issue { background:#ef4444; }
+.warn { background:#f59e0b; }
+.format { background:#eab308; color:black; }
 </style>
 </head>
 
 <body>
 
-<h2>📊 Advanced Excel Checker</h2>
-<input type="file" id="fileInput" />
+<h2>📊 Line-by-Line Excel Analyzer</h2>
+<input type="file" id="fileInput">
 
-<div id="tableContainer"></div>
+<div id="output"></div>
 
 <script>
-let data = [];
-let headers = [];
-
-document.getElementById('fileInput').addEventListener('change', function(e) {
+document.getElementById('fileInput').addEventListener('change', function(e){
   const reader = new FileReader();
-  reader.onload = function(evt) {
-    const workbook = XLSX.read(new Uint8Array(evt.target.result), {type:'array'});
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    data = XLSX.utils.sheet_to_json(sheet, {header:1});
 
-    headers = data[0];
-    renderTable();
+  reader.onload = function(evt){
+    const wb = XLSX.read(new Uint8Array(evt.target.result), {type:'array'});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const data = XLSX.utils.sheet_to_json(ws, {header:1});
+
+    analyzeRows(data);
   };
+
   reader.readAsArrayBuffer(e.target.files[0]);
 });
 
-function renderTable() {
+function analyzeRows(data){
+  let headers = data[0];
+  let rows = data.slice(1);
+
   let html = "<table><tr>";
 
-  headers.forEach(h => html += "<th>"+h+"</th>");
-  html += "</tr>";
+  headers.forEach(h => html += `<th>${h}</th>`);
+  html += "<th>Issues</th></tr>";
 
-  let values = data.slice(1);
+  let seenValues = {};
 
-  // Detect duplicates
-  let flat = values.flat();
-  let duplicates = flat.filter((v,i,a)=>a.indexOf(v)!==i);
-
-  // Detect numbers
-  let nums = flat.map(v=>Number(v)).filter(v=>!isNaN(v)).sort((a,b)=>a-b);
-
-  let missingNums = [];
-  for(let i=0;i<nums.length-1;i++){
-    if(nums[i+1]-nums[i]>1){
-      for(let j=1;j<nums[i+1]-nums[i];j++){
-        missingNums.push(nums[i]+j);
-      }
-    }
-  }
-
-  values.forEach(row=>{
+  rows.forEach((row, rowIndex) => {
+    let issues = [];
     html += "<tr>";
-    row.forEach(cell=>{
+
+    row.forEach((cell, colIndex) => {
       let cls = "";
 
-      // Duplicate
-      if(duplicates.includes(cell)) cls += "duplicate ";
+      // Missing value
+      if(cell === undefined || cell === ""){
+        cls = "issue";
+        issues.push(`Missing value in ${headers[colIndex]}`);
+      }
 
-      // Missing number indicator
-      if(missingNums.includes(Number(cell))) cls += "missing ";
+      // Format check
+      if(typeof cell === "string" && !isNaN(cell)){
+        cls = "format";
+        issues.push(`Format issue in ${headers[colIndex]}`);
+      }
 
-      // Format issue
-      if(typeof cell === "string" && !isNaN(cell)) cls += "format ";
+      // Duplicate across rows
+      let key = headers[colIndex] + "_" + cell;
+      if(seenValues[key]){
+        cls = "warn";
+        issues.push(`Duplicate in ${headers[colIndex]}`);
+      } else {
+        seenValues[key] = true;
+      }
 
-      html += `<td class="${cls}" data-text="${cell}">${cell}</td>`;
+      html += `<td class="${cls}">${cell ?? ""}</td>`;
     });
+
+    // Row-to-row comparison (simple pattern)
+    if(rowIndex > 0){
+      let prevRow = rows[rowIndex - 1];
+      if(JSON.stringify(row) === JSON.stringify(prevRow)){
+        issues.push("Exact duplicate row");
+      }
+    }
+
+    html += `<td>${issues.join("<br>") || "OK"}</td>`;
     html += "</tr>";
   });
 
   html += "</table>";
-  document.getElementById('tableContainer').innerHTML = html;
 
-  checkGrammar();
-}
-
-// Grammar Check using LanguageTool API
-async function checkGrammar() {
-  let cells = document.querySelectorAll("td");
-
-  for (let cell of cells) {
-    let text = cell.innerText;
-
-    if (text.length > 3 && isNaN(text)) {
-      let res = await fetch("https://api.languagetool.org/v2/check", {
-        method: "POST",
-        headers: {"Content-Type": "application/x-www-form-urlencoded"},
-        body: `text=${encodeURIComponent(text)}&language=en-US`
-      });
-
-      let result = await res.json();
-
-      if (result.matches.length > 0) {
-        cell.classList.add("grammar");
-      }
-    }
-  }
+  document.getElementById("output").innerHTML = html;
 }
 </script>
 
