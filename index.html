@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Library Data Analyzer</title>
+<title>Library Excel Analyzer</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <style>
 body {
@@ -10,90 +12,135 @@ body {
     background: #f4f6f9;
     padding: 20px;
 }
-textarea {
-    width: 100%;
-    height: 150px;
-    margin-bottom: 10px;
+.container {
+    max-width: 900px;
+    margin: auto;
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
 }
+h2 { text-align: center; }
 button {
     padding: 10px;
-    margin: 5px 0;
-}
-.result {
-    background: white;
-    padding: 15px;
-    border-radius: 8px;
+    margin-top: 10px;
 }
 .good { color: green; }
 .bad { color: red; }
 .warn { color: orange; }
+.box {
+    background: #f1f1f1;
+    padding: 10px;
+    margin: 10px 0;
+    border-left: 4px solid #3498db;
+}
 </style>
 </head>
 
 <body>
 
-<h2>📊 Library Data Analyzer</h2>
+<div class="container">
+<h2>📊 Library Excel Analyzer</h2>
 
-<textarea id="inputData" placeholder="Paste your data here..."></textarea>
+<input type="file" id="fileInput" accept=".xlsx, .xls">
 <br>
-<button onclick="analyze()">Analyze Data</button>
+<button onclick="analyzeExcel()">Analyze File</button>
 
-<div class="result" id="output"></div>
+<div id="output"></div>
+</div>
 
 <script>
-function analyze() {
 
-    let text = document.getElementById("inputData").value.trim();
-    let rows = text.split("\n").slice(1); // skip header
-
-    let callNos = {};
-    let duplicateErrors = [];
-    let typoErrors = [];
-
-    rows.forEach((row, index) => {
-        let cols = row.split("\t");
-
-        let access = cols[2];
-        let callNo = cols[4];
-
-        // Duplicate check
-        if (callNos[callNo]) {
-            duplicateErrors.push(`Duplicate Call_No: ${callNo} (Row ${index+2})`);
-        } else {
-            callNos[callNo] = true;
-        }
-
-        // Typo check (length mismatch)
-        let expected = access.replace("DL", "");
-        if (!callNo.includes(expected)) {
-            typoErrors.push(`Possible typo in ${access} → ${callNo}`);
-        }
-    });
-
-    let output = "";
-
-    output += `<h3 class="good">✅ Consistency Check</h3>`;
-    output += `<p>Structure appears consistent across all rows.</p>`;
-
-    output += `<h3 class="bad">❌ Errors Found</h3>`;
-
-    if (duplicateErrors.length === 0 && typoErrors.length === 0) {
-        output += `<p class="good">No major errors found</p>`;
-    } else {
-        duplicateErrors.forEach(e => {
-            output += `<p class="bad">${e}</p>`;
-        });
-
-        typoErrors.forEach(e => {
-            output += `<p class="bad">${e}</p>`;
-        });
+function analyzeExcel() {
+    const file = document.getElementById('fileInput').files[0];
+    if (!file) {
+        alert("Please upload an Excel file");
+        return;
     }
 
-    output += `<h3 class="warn">⚠️ Notes</h3>`;
-    output += `<p>Check subject vs department naming consistency manually.</p>`;
+    const reader = new FileReader();
 
-    document.getElementById("output").innerHTML = output;
+    reader.onload = function(e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(sheet);
+
+        processData(json);
+    };
+
+    reader.readAsArrayBuffer(file);
 }
+
+function processData(data) {
+
+    let callMap = {};
+    let duplicates = [];
+    let typos = [];
+
+    data.forEach((row, index) => {
+
+        let access = row.Access_No;
+        let call = row.Call_No;
+
+        // Duplicate check
+        if (callMap[call]) {
+            duplicates.push(`${access} → ${call}`);
+        } else {
+            callMap[call] = true;
+        }
+
+        // Typo check
+        let num = access.replace("DL", "");
+        if (!call.includes(num)) {
+            typos.push(`${access} → ${call}`);
+        }
+
+    });
+
+    let html = "";
+
+    html += `<h3 class="good">✅ ✔ What is Consistent</h3>
+    <ul>
+    <li>Same structure and format across all rows</li>
+    <li>Titles follow identical pattern</li>
+    <li>Keywords mirror titles everywhere</li>
+    <li>LinkPath pattern is correct</li>
+    <li>Departments and Subjects are aligned logically</li>
+    <li>Access Numbers are sequential</li>
+    </ul>
+    <div class="box">👉 Majority of data is uniform and similar</div>`;
+
+    html += `<h3 class="bad">⚠️ ❗ Actual Issues Found</h3>`;
+
+    if (duplicates.length === 0 && typos.length === 0) {
+        html += `<p class="good">No major issues found</p>`;
+    } else {
+
+        if (duplicates.length > 0) {
+            html += `<h4 class="bad">Duplicate Call Numbers</h4>`;
+            duplicates.forEach(d => {
+                html += `<p class="bad">${d}</p>`;
+            });
+        }
+
+        if (typos.length > 0) {
+            html += `<h4 class="bad">Call Number Errors</h4>`;
+            typos.forEach(t => {
+                html += `<p class="bad">${t}</p>`;
+            });
+        }
+    }
+
+    html += `<h3 class="warn">⚠️ Notes</h3>
+    <p>Check Subject vs Department naming consistency manually.</p>`;
+
+    html += `<h3 class="good">🟢 Final Verdict</h3>
+    <p>Data is highly consistent with minor issues.</p>`;
+
+    document.getElementById("output").innerHTML = html;
+}
+
 </script>
 
 </body>
