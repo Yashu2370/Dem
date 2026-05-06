@@ -2,40 +2,53 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Library Data Analyzer Pro</title>
+<title>Library Data Analyzer - Strict</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <style>
 body { font-family: Arial; background:#f4f6f9; padding:20px; }
-.container { max-width:1000px; margin:auto; background:white; padding:20px; border-radius:10px; }
+.container { max-width:1100px; margin:auto; background:white; padding:20px; border-radius:10px; }
+
 .good { color:green; }
 .bad { color:red; }
 .warn { color:orange; }
-.box { background:#f1f1f1; padding:10px; margin:10px 0; border-left:4px solid #3498db; }
+
+.errorBox {
+    background:#ffe6e6;
+    padding:10px;
+    margin:10px 0;
+    border-left:5px solid red;
+}
+
+.okBox {
+    background:#e6ffe6;
+    padding:10px;
+    margin:10px 0;
+    border-left:5px solid green;
+}
 </style>
 </head>
 
 <body>
 
 <div class="container">
-<h2>📊 Library Data Analyzer</h2>
+
+<h2>📊 Library Data Analyzer (Strict Mode)</h2>
 
 <input type="file" id="fileInput" accept=".xlsx,.xls">
 <br><br>
 <button onclick="analyzeExcel()">Analyze File</button>
 
 <div id="output"></div>
+
 </div>
 
 <script>
 
 function analyzeExcel() {
     const file = document.getElementById('fileInput').files[0];
-    if (!file) {
-        alert("Upload Excel file");
-        return;
-    }
+    if (!file) return alert("Upload Excel file");
 
     const reader = new FileReader();
 
@@ -54,116 +67,122 @@ function analyzeExcel() {
 
 function processData(data) {
 
-    let callMap = {};
-    let duplicates = [];
-    let typos = [];
-    let missing = [];
-    let errors = [];
-    let accessNumbers = [];
+    let output = "";
+    let callSet = new Set();
+    let accessNums = [];
 
     data.forEach((row, index) => {
 
         let r = index + 2;
+        let errors = [];
 
-        let access = (row.Access_No || "").toString();
-        let title = (row.Title || "").toString();
-        let call = (row.Call_No || "").toString();
-        let date = (row.Date_Year || "").toString();
-        let location = (row.Location || "").toString();
-        let keywords = (row.Keywords || "").toString();
-        let link = (row.LinkPath || "").toString();
-        let subject = (row.Subject || "").toString();
-        let dept = (row.Department || "").toString();
+        let access = (row.Access_No || "").toString().trim();
+        let title = (row.Title || "").toString().trim();
+        let call = (row.Call_No || "").toString().trim();
+        let date = (row.Date_Year || "").toString().trim();
+        let location = (row.Location || "").toString().trim();
+        let keywords = (row.Keywords || "").toString().trim();
+        let link = (row.LinkPath || "").toString().trim();
+        let subject = (row.Subject || "").toString().trim();
+        let dept = (row.Department || "").toString().trim();
 
         let num = access.replace("DL","");
 
-        // Collect numbers
-        if (!isNaN(num)) accessNumbers.push(parseInt(num));
+        // Store numbers
+        if (!isNaN(num)) accessNums.push(parseInt(num));
 
-        // Duplicate Call_No
-        if (call && callMap[call]) {
-            duplicates.push(`Row ${r}: ${access} → ${call}`);
-        } else {
-            callMap[call] = true;
+        // 1. Access_No format
+        if (!/^DL\d+$/.test(access)) {
+            errors.push("Invalid Access_No format");
         }
 
-        // Call_No mismatch
-        if (call && num && !call.includes(num)) {
-            typos.push(`Row ${r}: ${access} → ${call}`);
+        // 2. Call_No must include number
+        if (!call.includes(num)) {
+            errors.push("Call_No does not match Access_No");
         }
 
-        // Title vs Keywords
-        if (title && keywords) {
-            let firstWord = title.split(" ")[0].toLowerCase();
-            if (!keywords.toLowerCase().includes(firstWord)) {
-                errors.push(`Row ${r}: Keywords not matching Title`);
-            }
+        // 3. Duplicate Call_No
+        if (callSet.has(call)) {
+            errors.push("Duplicate Call_No");
+        }
+        callSet.add(call);
+
+        // 4. Date format
+        if (!/^\d{4}\/\d{2}$/.test(date)) {
+            errors.push("Invalid Date format (YYYY/MM required)");
         }
 
-        // Subject vs Department
-        if (subject && dept) {
-            let sub = subject.split(" ")[0].toLowerCase();
-            if (!dept.toLowerCase().includes(sub)) {
-                errors.push(`Row ${r}: Subject & Department mismatch`);
-            }
+        // 5. Location exact match
+        if (location !== "Library") {
+            errors.push("Location must be 'Library'");
         }
 
-        // LinkPath mismatch
-        if (link && access && !link.toLowerCase().includes(access.toLowerCase())) {
-            errors.push(`Row ${r}: LinkPath mismatch`);
+        // 6. Keywords vs Title (strict)
+        if (!keywords.toLowerCase().includes(title.split(" ")[0]?.toLowerCase())) {
+            errors.push("Keywords not matching Title");
         }
 
-        // ✅ Check missing ".pdf"
-        if (link && !link.toLowerCase().endsWith(".pdf")) {
-            errors.push(`Row ${r}: Missing ".pdf" → ${link}`);
+        // 7. Subject vs Department
+        if (!dept.toLowerCase().includes(subject.toLowerCase().split(" ")[0])) {
+            errors.push("Subject & Department mismatch");
         }
 
-        // ✅ Check missing dot before pdf
+        // 8. LinkPath must contain Access_No
+        if (!link.toLowerCase().includes(access.toLowerCase())) {
+            errors.push("LinkPath missing Access_No");
+        }
+
+        // 9. MUST end with .pdf
+        if (!link.endsWith(".pdf")) {
+            errors.push("Missing .pdf extension");
+        }
+
+        // 10. Missing dot before pdf
         if (/dl\d+pdf$/i.test(link)) {
-            errors.push(`Row ${r}: Missing "." before pdf → ${link}`);
+            errors.push("Missing '.' before pdf");
         }
 
-        // Date format
-        if (date && !/^\d{4}\/\d{2}$/.test(date)) {
-            errors.push(`Row ${r}: Invalid Date format`);
+        // 11. STRICT LinkPath format
+        let expected = `Digital/Question Papers/${access.toLowerCase()}.pdf`;
+        if (link !== expected) {
+            errors.push("Incorrect LinkPath format");
         }
 
-        // Location
-        if (location && location !== "Library") {
-            errors.push(`Row ${r}: Location inconsistent`);
+        // OUTPUT PER ROW
+        if (errors.length > 0) {
+            output += `<div class="errorBox">
+            <b>Row ${r} (${access}) ❌</b><br>
+            ${errors.map(e => "• " + e).join("<br>")}
+            </div>`;
+        } else {
+            output += `<div class="okBox">
+            <b>Row ${r} (${access}) ✅ Perfect</b>
+            </div>`;
         }
 
     });
 
     // Missing Access Numbers
-    accessNumbers.sort((a,b)=>a-b);
-    for (let i=0;i<accessNumbers.length-1;i++){
-        let diff = accessNumbers[i+1] - accessNumbers[i];
+    accessNums.sort((a,b)=>a-b);
+    let missing = [];
+
+    for (let i=0;i<accessNums.length-1;i++){
+        let diff = accessNums[i+1] - accessNums[i];
         if (diff > 1){
             for (let j=1;j<diff;j++){
-                missing.push("DL"+(accessNumbers[i]+j));
+                missing.push("DL"+(accessNums[i]+j));
             }
         }
     }
 
-    // OUTPUT
-    let html = `<h3 class="good">✅ ✔ What is Consistent</h3>
-    <p>Structure is mostly uniform.</p>`;
-
-    html += `<h3 class="bad">⚠️ Issues Found</h3>`;
-
-    if (!duplicates.length && !typos.length && !missing.length && !errors.length) {
-        html += `<p class="good">No issues found</p>`;
+    if (missing.length > 0) {
+        output += `<div class="warn">
+        <h3>⚠️ Missing Access Numbers</h3>
+        ${missing.join(", ")}
+        </div>`;
     }
 
-    duplicates.forEach(d => html += `<p class="bad">${d}</p>`);
-    typos.forEach(t => html += `<p class="bad">${t}</p>`);
-    missing.forEach(m => html += `<p class="warn">Missing: ${m}</p>`);
-    errors.forEach(e => html += `<p class="warn">${e}</p>`);
-
-    html += `<h3 class="good">🟢 Done</h3>`;
-
-    document.getElementById("output").innerHTML = html;
+    document.getElementById("output").innerHTML = output;
 }
 
 </script>
