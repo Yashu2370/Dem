@@ -2,142 +2,99 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Data Similarity Analysis</title>
+<title>Library Data Analyzer</title>
 
 <style>
 body {
-    font-family: Arial, sans-serif;
+    font-family: Arial;
     background: #f4f6f9;
-    margin: 0;
     padding: 20px;
 }
-
-.container {
-    max-width: 900px;
-    margin: auto;
-    background: white;
-    padding: 25px;
-    border-radius: 10px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+textarea {
+    width: 100%;
+    height: 150px;
+    margin-bottom: 10px;
 }
-
-h2 {
-    color: #2c3e50;
-}
-
-.section {
-    margin-bottom: 25px;
-}
-
-ul {
-    line-height: 1.8;
-}
-
-.good {
-    color: green;
-    font-weight: bold;
-}
-
-.bad {
-    color: red;
-    font-weight: bold;
-}
-
-.warning {
-    color: orange;
-    font-weight: bold;
-}
-
-.note {
-    margin-top: 10px;
-    font-style: italic;
-}
-
-.box {
-    background: #f9f9f9;
+button {
     padding: 10px;
-    border-left: 4px solid #3498db;
-    margin-top: 10px;
+    margin: 5px 0;
 }
+.result {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+}
+.good { color: green; }
+.bad { color: red; }
+.warn { color: orange; }
 </style>
-
 </head>
 
 <body>
 
-<div class="container">
+<h2>📊 Library Data Analyzer</h2>
 
-<h2>📊 Data Similarity Analysis Report</h2>
+<textarea id="inputData" placeholder="Paste your data here..."></textarea>
+<br>
+<button onclick="analyze()">Analyze Data</button>
 
-<div class="section">
-<h3 class="good">✅ ✔ What is Consistent</h3>
-<ul>
-<li>Same structure and format across all rows</li>
-<li>Titles follow identical pattern</li>
-<li>Keywords mirror titles everywhere</li>
-<li>LinkPath pattern is correct</li>
-<li>Departments and Subjects are logically aligned</li>
-<li>Access Numbers are sequential</li>
-</ul>
+<div class="result" id="output"></div>
 
-<div class="box">
-👉 So yes: <strong>majority (≈95–98%) is uniform and similar</strong>
-</div>
-</div>
+<script>
+function analyze() {
 
-<div class="section">
-<h3 class="bad">⚠️ ❗ Actual Issues Found (Important)</h3>
+    let text = document.getElementById("inputData").value.trim();
+    let rows = text.split("\n").slice(1); // skip header
 
-<h4 class="bad">1. Duplicate Call Number ❌</h4>
-<ul>
-<li><strong>DL9844 → QPCVUG26-9844</strong></li>
-<li><strong>DL9845 → QPCVUG26-9844 (same number)</strong></li>
-</ul>
+    let callNos = {};
+    let duplicateErrors = [];
+    let typoErrors = [];
 
-<div class="box">
-👉 This is a real error<br>
-Each record must have a <strong>unique Call_No</strong><br>
-Correct value: <strong>QPCVUG26-9845</strong>
-</div>
+    rows.forEach((row, index) => {
+        let cols = row.split("\t");
 
-<h4 class="bad">2. Call Number Typo ❌</h4>
-<ul>
-<li><strong>DL9848 → QPECUG26-98489</strong></li>
-</ul>
+        let access = cols[2];
+        let callNo = cols[4];
 
-<div class="box">
-👉 Extra digit “9”<br>
-Correct value: <strong>QPECUG26-9848</strong>
-</div>
+        // Duplicate check
+        if (callNos[callNo]) {
+            duplicateErrors.push(`Duplicate Call_No: ${callNo} (Row ${index+2})`);
+        } else {
+            callNos[callNo] = true;
+        }
 
-<h4 class="warning">3. Minor Naming Variation (Not Critical) ⚠️</h4>
-<ul>
-<li><strong>Subject:</strong> ELECTRONICS</li>
-<li><strong>Department:</strong> ELECTRONICS AND COMMUNICATION ENGINEERING</li>
-</ul>
+        // Typo check (length mismatch)
+        let expected = access.replace("DL", "");
+        if (!callNo.includes(expected)) {
+            typoErrors.push(`Possible typo in ${access} → ${callNo}`);
+        }
+    });
 
-<div class="box">
-👉 Not wrong, just not perfectly identical formatting
-</div>
+    let output = "";
 
-</div>
+    output += `<h3 class="good">✅ Consistency Check</h3>`;
+    output += `<p>Structure appears consistent across all rows.</p>`;
 
-<div class="section">
-<h3 class="good">🟢 Final Verdict</h3>
-<ul>
-<li>❌ Not 100% similar</li>
-<li>✅ Highly consistent overall</li>
-<li>⚠️ Only 2 critical errors (Call_No issues)</li>
-<li>⚠️ 1 minor formatting variation</li>
-</ul>
+    output += `<h3 class="bad">❌ Errors Found</h3>`;
 
-<div class="box">
-👉 Your dataset is <strong>clean, structured, and almost perfect</strong>
-</div>
+    if (duplicateErrors.length === 0 && typoErrors.length === 0) {
+        output += `<p class="good">No major errors found</p>`;
+    } else {
+        duplicateErrors.forEach(e => {
+            output += `<p class="bad">${e}</p>`;
+        });
 
-</div>
+        typoErrors.forEach(e => {
+            output += `<p class="bad">${e}</p>`;
+        });
+    }
 
-</div>
+    output += `<h3 class="warn">⚠️ Notes</h3>`;
+    output += `<p>Check subject vs department naming consistency manually.</p>`;
+
+    document.getElementById("output").innerHTML = output;
+}
+</script>
 
 </body>
 </html>
