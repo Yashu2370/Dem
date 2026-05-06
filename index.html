@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>Library Data Analyzer - Strict</title>
+<title>Library Analyzer - Full Consistency</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
@@ -10,179 +10,106 @@
 body { font-family: Arial; background:#f4f6f9; padding:20px; }
 .container { max-width:1100px; margin:auto; background:white; padding:20px; border-radius:10px; }
 
-.good { color:green; }
-.bad { color:red; }
-.warn { color:orange; }
+.error { color:red; }
+.ok { color:green; }
 
-.errorBox {
-    background:#ffe6e6;
-    padding:10px;
-    margin:10px 0;
-    border-left:5px solid red;
-}
-
-.okBox {
-    background:#e6ffe6;
-    padding:10px;
-    margin:10px 0;
-    border-left:5px solid green;
-}
+.box { margin:10px 0; padding:10px; border-left:5px solid red; background:#ffe6e6; }
+.good { border-left:5px solid green; background:#e6ffe6; }
 </style>
 </head>
 
 <body>
 
 <div class="container">
+<h2>📊 Full Consistency Analyzer</h2>
 
-<h2>📊 Library Data Analyzer (Strict Mode)</h2>
-
-<input type="file" id="fileInput" accept=".xlsx,.xls">
+<input type="file" id="fileInput">
 <br><br>
-<button onclick="analyzeExcel()">Analyze File</button>
+<button onclick="analyze()">Analyze</button>
 
 <div id="output"></div>
-
 </div>
 
 <script>
 
-function analyzeExcel() {
+function analyze() {
     const file = document.getElementById('fileInput').files[0];
-    if (!file) return alert("Upload Excel file");
+    if (!file) return alert("Upload file");
 
     const reader = new FileReader();
 
     reader.onload = function(e) {
         const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
-
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const wb = XLSX.read(data, {type:'array'});
+        const sheet = wb.Sheets[wb.SheetNames[0]];
         const json = XLSX.utils.sheet_to_json(sheet);
 
-        processData(json);
+        process(json);
     };
 
     reader.readAsArrayBuffer(file);
 }
 
-function processData(data) {
+function process(data) {
 
     let output = "";
-    let callSet = new Set();
-    let accessNums = [];
 
-    data.forEach((row, index) => {
+    if (data.length === 0) return;
 
-        let r = index + 2;
+    // 👉 Take FIRST ROW as STANDARD
+    let base = data[0];
+
+    data.forEach((row, i) => {
+
+        let r = i + 2;
         let errors = [];
 
-        let access = (row.Access_No || "").toString().trim();
-        let title = (row.Title || "").toString().trim();
-        let call = (row.Call_No || "").toString().trim();
-        let date = (row.Date_Year || "").toString().trim();
-        let location = (row.Location || "").toString().trim();
-        let keywords = (row.Keywords || "").toString().trim();
-        let link = (row.LinkPath || "").toString().trim();
-        let subject = (row.Subject || "").toString().trim();
-        let dept = (row.Department || "").toString().trim();
+        let fields = ["Access_No","Title","Call_No","Date_Year","Location","Keywords","LinkPath","Subject","Department"];
 
-        let num = access.replace("DL","");
+        fields.forEach(f => {
 
-        // Store numbers
-        if (!isNaN(num)) accessNums.push(parseInt(num));
+            let baseVal = (base[f] || "").toString().toLowerCase();
+            let currVal = (row[f] || "").toString().toLowerCase();
 
-        // 1. Access_No format
-        if (!/^DL\d+$/.test(access)) {
-            errors.push("Invalid Access_No format");
-        }
+            // STRICT MATCH (pattern similarity check)
+            if (!isSimilar(baseVal, currVal)) {
+                errors.push(`${f} not consistent`);
+            }
 
-        // 2. Call_No must include number
-        if (!call.includes(num)) {
-            errors.push("Call_No does not match Access_No");
-        }
+            // EXTRA CHECK: missing dot
+            if (f === "LinkPath") {
+                if (/pdf$/.test(currVal) && !currVal.endsWith(".pdf")) {
+                    errors.push("Missing '.' before pdf");
+                }
+            }
 
-        // 3. Duplicate Call_No
-        if (callSet.has(call)) {
-            errors.push("Duplicate Call_No");
-        }
-        callSet.add(call);
+        });
 
-        // 4. Date format
-        if (!/^\d{4}\/\d{2}$/.test(date)) {
-            errors.push("Invalid Date format (YYYY/MM required)");
-        }
-
-        // 5. Location exact match
-        if (location !== "Library") {
-            errors.push("Location must be 'Library'");
-        }
-
-        // 6. Keywords vs Title (strict)
-        if (!keywords.toLowerCase().includes(title.split(" ")[0]?.toLowerCase())) {
-            errors.push("Keywords not matching Title");
-        }
-
-        // 7. Subject vs Department
-        if (!dept.toLowerCase().includes(subject.toLowerCase().split(" ")[0])) {
-            errors.push("Subject & Department mismatch");
-        }
-
-        // 8. LinkPath must contain Access_No
-        if (!link.toLowerCase().includes(access.toLowerCase())) {
-            errors.push("LinkPath missing Access_No");
-        }
-
-        // 9. MUST end with .pdf
-        if (!link.endsWith(".pdf")) {
-            errors.push("Missing .pdf extension");
-        }
-
-        // 10. Missing dot before pdf
-        if (/dl\d+pdf$/i.test(link)) {
-            errors.push("Missing '.' before pdf");
-        }
-
-        // 11. STRICT LinkPath format
-        let expected = `Digital/Question Papers/${access.toLowerCase()}.pdf`;
-        if (link !== expected) {
-            errors.push("Incorrect LinkPath format");
-        }
-
-        // OUTPUT PER ROW
         if (errors.length > 0) {
-            output += `<div class="errorBox">
-            <b>Row ${r} (${access}) ❌</b><br>
-            ${errors.map(e => "• " + e).join("<br>")}
+            output += `<div class="box">
+            <b>Row ${r} ❌</b><br>
+            ${errors.map(e => "• "+e).join("<br>")}
             </div>`;
         } else {
-            output += `<div class="okBox">
-            <b>Row ${r} (${access}) ✅ Perfect</b>
+            output += `<div class="box good">
+            <b>Row ${r} ✅ Perfect</b>
             </div>`;
         }
 
     });
 
-    // Missing Access Numbers
-    accessNums.sort((a,b)=>a-b);
-    let missing = [];
-
-    for (let i=0;i<accessNums.length-1;i++){
-        let diff = accessNums[i+1] - accessNums[i];
-        if (diff > 1){
-            for (let j=1;j<diff;j++){
-                missing.push("DL"+(accessNums[i]+j));
-            }
-        }
-    }
-
-    if (missing.length > 0) {
-        output += `<div class="warn">
-        <h3>⚠️ Missing Access Numbers</h3>
-        ${missing.join(", ")}
-        </div>`;
-    }
-
     document.getElementById("output").innerHTML = output;
+}
+
+
+// 🔥 SMART SIMILARITY FUNCTION
+function isSimilar(base, current) {
+
+    // remove numbers to compare pattern
+    let b = base.replace(/\d+/g, "");
+    let c = current.replace(/\d+/g, "");
+
+    return b === c;
 }
 
 </script>
