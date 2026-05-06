@@ -27,13 +27,13 @@ td, th { border:1px solid #334155; padding:8px; }
 
 <h2>📊 Smart Excel Row Analyzer</h2>
 
-<!-- 🔥 TOP LEGEND -->
+<!-- 🔥 LEGEND -->
 <div class="legend" style="margin:15px 0; padding:10px; background:#1e293b; border-radius:8px;">
   <strong>Legend:</strong><br>
-  <span style="background:#ef4444; color:white;">Red Row = Exact duplicate (all columns same)</span>
-  <span style="background:#f59e0b; color:black;">Orange Row = Small typo / 1-2 letter difference</span>
-  <span style="background:#38bdf8; color:black;">Blue Cell = Column where change detected</span>
-  <span style="background:#334155; color:white;">OK = No issue</span>
+  <span style="background:#ef4444;">Red Row = Exact duplicate</span>
+  <span style="background:#f59e0b;">Orange Row = Small typo</span>
+  <span style="background:#38bdf8;">Blue Cell = Changed column</span>
+  <span style="background:#334155;">OK = No issue</span>
 </div>
 
 <input type="file" id="fileInput">
@@ -56,7 +56,7 @@ document.getElementById('fileInput').addEventListener('change', function(e){
   reader.readAsArrayBuffer(e.target.files[0]);
 });
 
-// SIMILARITY FUNCTION
+// SIMILARITY FUNCTION (Levenshtein)
 function similarity(a, b) {
   function editDistance(s1, s2) {
     let dp = Array(s2.length + 1).fill(null).map(() =>
@@ -82,6 +82,8 @@ function similarity(a, b) {
     return dp[s2.length][s1.length];
   }
 
+  if (!a && !b) return 1;
+
   let longer = a.length > b.length ? a : b;
   let shorter = a.length > b.length ? b : a;
 
@@ -104,9 +106,9 @@ function analyze(data){
     let issues = [];
     let diffCols = new Set();
 
-    for (let j = 0; j < i; j++) {
-      let prevRow = rows[j];
+    let prevRow = rows[i - 1];
 
+    if (prevRow) {
       let matchCount = 0;
 
       for (let k = 0; k < row.length; k++) {
@@ -117,8 +119,9 @@ function analyze(data){
 
         if (sim === 1) {
           matchCount++;
-        } else if (sim > 0.9) {
-          diffCols.add(k);
+        } 
+        else if (sim > 0.95) {
+          diffCols.add(k); // only very close differences
         }
       }
 
@@ -127,9 +130,10 @@ function analyze(data){
       if (matchPercent === 100) {
         rowClass = "exact";
         issues.push("Exact Duplicate Row");
-      } else if (matchPercent > 80) {
+      } 
+      else if (matchPercent > 90) {
         rowClass = "similar";
-        issues.push("Minor text difference (typo)");
+        issues.push("Minor typo (1-2 letter difference)");
       }
     }
 
@@ -141,7 +145,7 @@ function analyze(data){
     });
 
     html += `<td>${issues.join("<br>") || "OK"}</td>`;
-    html += "</tr>";
+    html += "</tr>`;
   });
 
   html += "</table>";
