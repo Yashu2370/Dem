@@ -1,158 +1,143 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Smart Excel Row Analyzer</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<title>Data Similarity Analysis</title>
 
 <style>
-body { font-family: Arial; background:#0f172a; color:white; padding:20px; }
-table { border-collapse: collapse; width:100%; }
-td, th { border:1px solid #334155; padding:8px; }
+body {
+    font-family: Arial, sans-serif;
+    background: #f4f6f9;
+    margin: 0;
+    padding: 20px;
+}
 
-.exact { background:#ef4444; color:white; }
-.similar { background:#f59e0b; }
-.diff { background:#38bdf8; color:black; }
+.container {
+    max-width: 900px;
+    margin: auto;
+    background: white;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
 
-.legend span {
-  display:inline-block;
-  padding:6px 10px;
-  margin:4px;
-  border-radius:5px;
+h2 {
+    color: #2c3e50;
+}
+
+.section {
+    margin-bottom: 25px;
+}
+
+ul {
+    line-height: 1.8;
+}
+
+.good {
+    color: green;
+    font-weight: bold;
+}
+
+.bad {
+    color: red;
+    font-weight: bold;
+}
+
+.warning {
+    color: orange;
+    font-weight: bold;
+}
+
+.note {
+    margin-top: 10px;
+    font-style: italic;
+}
+
+.box {
+    background: #f9f9f9;
+    padding: 10px;
+    border-left: 4px solid #3498db;
+    margin-top: 10px;
 }
 </style>
+
 </head>
 
 <body>
 
-<h2>📊 Smart Excel Row Analyzer</h2>
+<div class="container">
 
-<!-- 🔥 LEGEND -->
-<div class="legend" style="margin:15px 0; padding:10px; background:#1e293b; border-radius:8px;">
-  <strong>Legend:</strong><br>
-  <span style="background:#ef4444;">Red Row = Exact duplicate</span>
-  <span style="background:#f59e0b;">Orange Row = Small typo</span>
-  <span style="background:#38bdf8;">Blue Cell = Changed column</span>
-  <span style="background:#334155;">OK = No issue</span>
+<h2>📊 Data Similarity Analysis Report</h2>
+
+<div class="section">
+<h3 class="good">✅ ✔ What is Consistent</h3>
+<ul>
+<li>Same structure and format across all rows</li>
+<li>Titles follow identical pattern</li>
+<li>Keywords mirror titles everywhere</li>
+<li>LinkPath pattern is correct</li>
+<li>Departments and Subjects are logically aligned</li>
+<li>Access Numbers are sequential</li>
+</ul>
+
+<div class="box">
+👉 So yes: <strong>majority (≈95–98%) is uniform and similar</strong>
+</div>
 </div>
 
-<input type="file" id="fileInput">
+<div class="section">
+<h3 class="bad">⚠️ ❗ Actual Issues Found (Important)</h3>
 
-<div id="output"></div>
+<h4 class="bad">1. Duplicate Call Number ❌</h4>
+<ul>
+<li><strong>DL9844 → QPCVUG26-9844</strong></li>
+<li><strong>DL9845 → QPCVUG26-9844 (same number)</strong></li>
+</ul>
 
-<script>
-// FILE LOAD
-document.getElementById('fileInput').addEventListener('change', function(e){
-  const reader = new FileReader();
+<div class="box">
+👉 This is a real error<br>
+Each record must have a <strong>unique Call_No</strong><br>
+Correct value: <strong>QPCVUG26-9845</strong>
+</div>
 
-  reader.onload = function(evt){
-    const wb = XLSX.read(new Uint8Array(evt.target.result), {type:'array'});
-    const ws = wb.Sheets[wb.SheetNames[0]];
-    const data = XLSX.utils.sheet_to_json(ws, {header:1});
+<h4 class="bad">2. Call Number Typo ❌</h4>
+<ul>
+<li><strong>DL9848 → QPECUG26-98489</strong></li>
+</ul>
 
-    analyze(data);
-  };
+<div class="box">
+👉 Extra digit “9”<br>
+Correct value: <strong>QPECUG26-9848</strong>
+</div>
 
-  reader.readAsArrayBuffer(e.target.files[0]);
-});
+<h4 class="warning">3. Minor Naming Variation (Not Critical) ⚠️</h4>
+<ul>
+<li><strong>Subject:</strong> ELECTRONICS</li>
+<li><strong>Department:</strong> ELECTRONICS AND COMMUNICATION ENGINEERING</li>
+</ul>
 
-// SIMILARITY FUNCTION (Levenshtein)
-function similarity(a, b) {
-  function editDistance(s1, s2) {
-    let dp = Array(s2.length + 1).fill(null).map(() =>
-      Array(s1.length + 1).fill(null)
-    );
+<div class="box">
+👉 Not wrong, just not perfectly identical formatting
+</div>
 
-    for (let i = 0; i <= s1.length; i++) dp[0][i] = i;
-    for (let j = 0; j <= s2.length; j++) dp[j][0] = j;
+</div>
 
-    for (let j = 1; j <= s2.length; j++) {
-      for (let i = 1; i <= s1.length; i++) {
-        if (s1[i - 1] === s2[j - 1]) {
-          dp[j][i] = dp[j - 1][i - 1];
-        } else {
-          dp[j][i] = Math.min(
-            dp[j - 1][i - 1] + 1,
-            dp[j][i - 1] + 1,
-            dp[j - 1][i] + 1
-          );
-        }
-      }
-    }
-    return dp[s2.length][s1.length];
-  }
+<div class="section">
+<h3 class="good">🟢 Final Verdict</h3>
+<ul>
+<li>❌ Not 100% similar</li>
+<li>✅ Highly consistent overall</li>
+<li>⚠️ Only 2 critical errors (Call_No issues)</li>
+<li>⚠️ 1 minor formatting variation</li>
+</ul>
 
-  if (!a && !b) return 1;
+<div class="box">
+👉 Your dataset is <strong>clean, structured, and almost perfect</strong>
+</div>
 
-  let longer = a.length > b.length ? a : b;
-  let shorter = a.length > b.length ? b : a;
+</div>
 
-  let dist = editDistance(longer, shorter);
-  return (longer.length - dist) / longer.length;
-}
-
-// MAIN ANALYZER
-function analyze(data){
-  let headers = data[0];
-  let rows = data.slice(1);
-
-  let html = "<table><tr>";
-  headers.forEach(h => html += `<th>${h}</th>`);
-  html += "<th>Issues</th></tr>";
-
-  rows.forEach((row, i) => {
-
-    let rowClass = "";
-    let issues = [];
-    let diffCols = new Set();
-
-    let prevRow = rows[i - 1];
-
-    if (prevRow) {
-      let matchCount = 0;
-
-      for (let k = 0; k < row.length; k++) {
-        let val1 = (row[k] || "").toString().toLowerCase().trim();
-        let val2 = (prevRow[k] || "").toString().toLowerCase().trim();
-
-        let sim = similarity(val1, val2);
-
-        if (sim === 1) {
-          matchCount++;
-        } 
-        else if (sim > 0.95) {
-          diffCols.add(k); // only very close differences
-        }
-      }
-
-      let matchPercent = (matchCount / row.length) * 100;
-
-      if (matchPercent === 100) {
-        rowClass = "exact";
-        issues.push("Exact Duplicate Row");
-      } 
-      else if (matchPercent > 90) {
-        rowClass = "similar";
-        issues.push("Minor typo (1-2 letter difference)");
-      }
-    }
-
-    html += `<tr class="${rowClass}">`;
-
-    row.forEach((cell, index) => {
-      let cellClass = diffCols.has(index) ? "diff" : "";
-      html += `<td class="${cellClass}">${cell ?? ""}</td>`;
-    });
-
-    html += `<td>${issues.join("<br>") || "OK"}</td>`;
-    html += "</tr>`;
-  });
-
-  html += "</table>";
-
-  document.getElementById("output").innerHTML = html;
-}
-</script>
+</div>
 
 </body>
 </html>
